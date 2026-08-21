@@ -1,5 +1,5 @@
 // Bump version string to force cache refresh after updating tube-annotator.html
-const CACHE = "lda-v1";
+const CACHE = "lda-v2";
 const FILES = ["./tube-annotator.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", e => {
