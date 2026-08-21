@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Tube &amp; Line Annotator</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root{
+    --bg:#0d0f12; --panel:#16191e; --panel-2:#1c2027; --border:#2a303a;
+    --text:#e7ebf1; --muted:#8b93a1; --accent:#5b9bd5; --danger:#e0554f;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--text);
+    font:14px/1.4 ui-sans-serif,-apple-system,"SF Pro Text",Segoe UI,Roboto,sans-serif;}
+  body{display:flex; touch-action:none;}
+
+  /* Sidebar */
+  #side{width:268px; flex:0 0 268px; background:var(--panel); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; overflow-y:auto;}
+  #side h1{font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
+    margin:0; padding:16px 16px 4px;}
+  .sub{font-size:11px; color:var(--muted); padding:0 16px 12px;}
+  .group{padding:12px 16px; border-top:1px solid var(--border);}
+  .group > .label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:10px;}
+
+  /* Classes */
+  .cls{display:flex; align-items:center; gap:6px; padding:7px 8px; border-radius:8px; cursor:pointer;
+    border:1px solid transparent; margin-bottom:4px; user-select:none; position:relative;}
+  .cls:hover{background:var(--panel-2);}
+  .cls.active{background:var(--panel-2); border-color:var(--accent);}
+  /* Indent sub-instances visually */
+  .cls.instance{padding-left:20px;}
+  .cls.instance::before{content:''; position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    width:2px; height:55%; background:var(--border); border-radius:2px;}
+  .swatch{width:16px; height:16px; border-radius:4px; flex:0 0 16px; box-shadow:0 0 0 1px rgba(255,255,255,.15) inset;}
+  .cls .name{flex:1; outline:none; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .cls .kbd{font-size:10px; color:var(--muted); border:1px solid var(--border); border-radius:4px; padding:1px 5px; flex:0 0 auto;}
+  .cls .inst-badge{font-size:10px; color:var(--accent); font-weight:700; padding:1px 5px;
+    background:rgba(91,155,213,.15); border-radius:4px; flex:0 0 auto; line-height:1.6;}
+  .cls .act-btn{color:var(--muted); font-size:14px; line-height:1; padding:2px 3px; opacity:0; flex:0 0 auto;}
+  .cls:hover .act-btn{opacity:1;}
+  .cls .add-inst{color:var(--accent); font-size:16px; font-weight:300;}
+
+  button,.btn{font:inherit; color:var(--text); background:var(--panel-2); border:1px solid var(--border);
+    border-radius:8px; padding:8px 10px; cursor:pointer; width:100%; text-align:center;}
+  button:hover{border-color:var(--accent);}
+  button:active{transform:translateY(1px);}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#08111a; font-weight:600;}
+  button.ghost{background:transparent;}
+  button:disabled{opacity:.35; pointer-events:none;}
+  .row{display:flex; gap:8px;}
+  .row > *{flex:1;}
+
+  /* Tools */
+  .toolbtn{display:flex; align-items:center; justify-content:center; gap:6px;}
+  .toolbtn.on{border-color:var(--accent); background:var(--panel-2);}
+  input[type=range]{width:100%; accent-color:var(--accent);}
+  .val{font-variant-numeric:tabular-nums; color:var(--muted); font-size:12px; float:right;}
+
+  /* Image info bar */
+  #imgInfo{font-size:11px; color:var(--muted); padding:6px 0 0; word-break:break-all; line-height:1.5;}
+
+  /* Stage */
+  #stage{flex:1; position:relative; overflow:hidden; background:
+    repeating-conic-gradient(#111418 0% 25%, #0c0e11 0% 50%) 50%/22px 22px;}
+  #view{position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform;}
+  #view canvas{position:absolute; top:0; left:0; display:block; image-rendering:auto;}
+  #imgC{z-index:1;}
+  #lblC{z-index:2;}
+  #empty{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:14px; color:var(--muted); text-align:center; padding:24px;}
+  #empty .big{font-size:15px; color:var(--text);}
+  #hud{position:absolute; left:12px; bottom:12px; z-index:5; display:flex; gap:8px; align-items:center;
+    background:rgba(16,19,24,.8); backdrop-filter:blur(6px); border:1px solid var(--border);
+    border-radius:999px; padding:5px 6px;}
+  #hud button{width:auto; padding:6px 10px; border-radius:999px;}
+  #hud .z{color:var(--muted); font-variant-numeric:tabular-nums; padding:0 6px; font-size:12px; min-width:52px; text-align:center;}
+
+  .hint{font-size:11px; color:var(--muted); line-height:1.6; padding:12px 16px 20px;}
+  .hint b{color:var(--text);}
+  input[type=file]{display:none;}
+  .file-label{display:block;}
+
+  /* mobile */
+  @media (max-width:720px){
+    #side{position:absolute; z-index:20; height:100%; transform:translateX(-100%); transition:transform .2s; box-shadow:0 0 40px rgba(0,0,0,.6);}
+    #side.open{transform:none;}
+    #menuBtn{display:flex;}
+  }
+  #menuBtn{display:none; position:absolute; top:12px; left:12px; z-index:15; width:auto; padding:8px 12px; border-radius:999px;
+    background:rgba(16,19,24,.85); backdrop-filter:blur(6px);}
+</style>
+</head>
+<body>
+  <aside id="side">
+    <h1>Tube &amp; Line Annotator</h1>
+    <div class="sub">Local &middot; nothing leaves this device</div>
+
+    <!-- ── Project / navigation ────────────────────────────── -->
+    <div class="group">
+      <div class="label">Project</div>
+      <label class="file-label">
+        <span class="btn primary" style="display:block">Open images&hellip;</span>
+        <input type="file" id="fileMulti" accept="image/*" multiple>
+      </label>
+      <button id="setFolder" style="margin-top:8px; font-size:12px; display:none">&#128193; Set output folder</button>
+      <div id="folderInfo" style="font-size:11px; color:var(--muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
+      <div id="imgInfo"></div>
+      <div class="row" id="navRow" style="margin-top:8px; display:none">
+        <button id="prevImg" disabled>&#8592; Back</button>
+        <button id="nextImg" disabled>Next &#8594;</button>
+      </div>
+      <button class="primary" id="saveNext" style="margin-top:8px; display:none" disabled>Save &amp; Next &#8594;</button>
+    </div>
+
+    <!-- ── Structures ──────────────────────────────────────── -->
+    <div class="group">
+      <div class="label">Structures</div>
+      <div id="classList"></div>
+      <button class="ghost" id="addClass" style="margin-top:6px">+ Add structure</button>
+      <div class="row" style="margin-top:10px">
+        <button id="saveStructures" style="font-size:11px; padding:6px 8px">&#8595; Save list</button>
+        <label class="file-label" style="flex:1">
+          <button style="font-size:11px; padding:6px 8px; width:100%; pointer-events:none">&#8593; Load list</button>
+          <input type="file" id="loadStructures" accept=".json">
+        </label>
+      </div>
+    </div>
+
+    <!-- ── Tool ────────────────────────────────────────────── -->
+    <div class="group">
+      <div class="label">Tool</div>
+      <div class="row" style="margin-bottom:10px">
+        <button class="toolbtn on" id="brushBtn">Brush</button>
+        <button class="toolbtn" id="eraseBtn">Eraser</button>
+      </div>
+      <div class="label">Brush size <span class="val" id="sizeVal">8&nbsp;px</span></div>
+      <input type="range" id="size" min="1" max="60" value="8">
+      <div class="label" style="margin-top:12px">Overlay opacity <span class="val" id="opVal">70%</span></div>
+      <input type="range" id="opacity" min="10" max="100" value="70">
+      <label style="display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--muted); font-size:12px; cursor:pointer">
+        <input type="checkbox" id="pressure" checked style="accent-color:var(--accent)"> Pencil pressure &rarr; width
+      </label>
+    </div>
+
+    <!-- ── Actions ─────────────────────────────────────────── -->
+    <div class="group">
+      <div class="row" style="margin-bottom:8px">
+        <button id="undo">Undo</button>
+        <button id="clear" class="ghost">Clear</button>
+      </div>
+      <button id="exportAll" style="font-size:12px; margin-bottom:8px">Export all annotations (JSON)</button>
+      <button id="exportStrokes" style="font-size:12px">Export strokes (.json)</button>
+    </div>
+
+    <div class="hint">
+      <b>Navigate:</b> Back / Next / Save &amp; Next auto-save in session.<br>
+      <b>Instances:</b> press <b>]</b> or tap <b>&#8853;</b> to add next entity of the same structure. All instances share one class ID on export.<br>
+      <b>Keys 1&ndash;9</b> select structures &bull; <b>B</b> brush &bull; <b>E</b> eraser &bull; <b>&#8984;Z</b> undo.
+    </div>
+  </aside>
+
+  <main id="stage">
+    <button id="menuBtn">&#9776; Tools</button>
+    <div id="view">
+      <canvas id="imgC"></canvas>
+      <canvas id="lblC"></canvas>
+    </div>
+    <div id="empty">
+      <div class="big">Open chest radiographs to begin</div>
+      <div>PNG or JPEG &mdash; files are read locally and never uploaded.</div>
+    </div>
+    <div id="hud" style="display:none">
+      <button id="zoomOut">&minus;</button>
+      <span class="z" id="zVal">100%</span>
+      <button id="zoomIn">+</button>
+      <button id="fit">Fit</button>
+    </div>
+  </main>
+
+<script>
+(function(){
+  "use strict";
+  const $ = s => document.querySelector(s);
+
+  // ── Color helpers ────────────────────────────────────────────────────────
+  function hexToHSL(hex){
+    let r=parseInt(hex.slice(1,3),16)/255, g=parseInt(hex.slice(3,5),16)/255, b=parseInt(hex.slice(5,7),16)/255;
+    const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+    let h=0, s=0, l=(mx+mn)/2;
+    if(mx!==mn){
+      const d=mx-mn;
+      s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+      switch(mx){case r:h=((g-b)/d+(g<b?6:0))/6;break;case g:h=((b-r)/d+2)/6;break;case b:h=((r-g)/d+4)/6;break;}
+    }
+    return [h*360, s*100, l*100];
+  }
+  function hslToHex(h,s,l){
+    h/=360; s/=100; l/=100;
+    const hue2rgb=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+    let r,g,b;
+    if(!s){r=g=b=l;}else{const q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;r=hue2rgb(p,q,h+1/3);g=hue2rgb(p,q,h);b=hue2rgb(p,q,h-1/3);}
+    return '#'+[r,g,b].map(v=>Math.round(v*255).toString(16).padStart(2,'0')).join('');
+  }
+  // Derive a visually distinct but hue-related color per instance number
+  function instanceColor(baseHex, inst){
+    if(inst<=1) return baseHex;
+    const [h,s,l]=hexToHSL(baseHex);
+    const lShifts=[0, 18,-14, 28,-22, 12,-10, 22];
+    const hShifts=[0,  0,  0, 18,-18, 36,-36, 54];
+    const idx=Math.min(inst-1, lShifts.length-1);
+    return hslToHex((h+hShifts[idx]+360)%360, s, Math.max(15, Math.min(85, l+lShifts[idx])));
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  let sidCounter = 5;   // next unique structure ID
+  let classes = [
+    {name:"ETT",                color:"#ff4d4d", baseColor:"#ff4d4d", instance:1, sid:0},
+    {name:"NG / OG tube",       color:"#ffd11a", baseColor:"#ffd11a", instance:1, sid:1},
+    {name:"Central line (CVC)", color:"#39d353", baseColor:"#39d353", instance:1, sid:2},
+    {name:"Chest tube",         color:"#3aa0ff", baseColor:"#3aa0ff", instance:1, sid:3},
+    {name:"PICC",               color:"#c07bff", baseColor:"#c07bff", instance:1, sid:4},
+  ];
+  let activeIdx = 0;
+  let tool = "brush";
+  let usePressure = true;
+  let brushSize = 8;
+  const MAX_UNDO = 12;
+  let undoStack = [];
+
+  // Multi-image project state
+  let images = [];        // [{file, name}]
+  let annotations = {};   // {filename: lblC dataURL}
+  let currentImageIdx = -1;
+  let saveFolder = null;  // FileSystemDirectoryHandle when set
+
+  // Stroke recording state
+  let strokes = [];           // [{sid, name, instance, points:[x,y][]}] for current case
+  let currentStroke = null;   // stroke being drawn right now
+
+  let img = null;
+  const imgC = $("#imgC"), lblC = $("#lblC");
+  const ictx = imgC.getContext("2d");
+  const lctx = lblC.getContext("2d", {willReadFrequently:true});
+  const view = $("#view"), stage = $("#stage");
+
+  let scale = 1, tx = 0, ty = 0;
+
+  // ── Viewport transform ───────────────────────────────────────────────────
+  function applyTransform(){
+    view.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    $("#zVal").textContent = Math.round(scale*100)+"%";
+  }
+  function fit(){
+    if(!img) return;
+    const pad=24, sw=stage.clientWidth-pad*2, sh=stage.clientHeight-pad*2;
+    scale=Math.min(sw/img.naturalWidth, sh/img.naturalHeight, 1);
+    tx=(stage.clientWidth-img.naturalWidth*scale)/2;
+    ty=(stage.clientHeight-img.naturalHeight*scale)/2;
+    applyTransform();
+  }
+  function zoomAt(cx,cy,factor){
+    const nx=Math.min(8, Math.max(0.05, scale*factor));
+    tx=cx-(cx-tx)*(nx/scale); ty=cy-(cy-ty)*(nx/scale); scale=nx; applyTransform();
+  }
+
+  // ── Image loading ────────────────────────────────────────────────────────
+  function mountImage(im, restoreDataURL){
+    img=im;
+    [imgC,lblC].forEach(c=>{c.width=im.naturalWidth; c.height=im.naturalHeight;});
+    ictx.clearRect(0,0,imgC.width,imgC.height);
+    ictx.drawImage(im,0,0);
+    lctx.clearRect(0,0,lblC.width,lblC.height);
+    if(restoreDataURL){
+      const ri=new Image(); ri.onload=()=>lctx.drawImage(ri,0,0); ri.src=restoreDataURL;
+    }
+    undoStack=[];
+    $("#empty").style.display="none";
+    $("#hud").style.display="flex";
+    fit();
+  }
+
+  function saveCurrentAnnotation(){
+    if(currentImageIdx>=0 && img)
+      annotations[images[currentImageIdx].name]={
+        dataURL: lblC.toDataURL(),
+        classes: JSON.parse(JSON.stringify(classes)),  // snapshot instances for this case
+        strokes: JSON.parse(JSON.stringify(strokes))   // snapshot ordered stroke paths
+      };
+  }
+
+  function navigateTo(idx){
+    if(idx<0||idx>=images.length) return;
+    saveCurrentAnnotation();
+    currentImageIdx=idx;
+    const entry=images[idx];
+    const saved=annotations[entry.name];
+    if(saved){
+      // Restore this case's exact instance list and strokes
+      classes=JSON.parse(JSON.stringify(saved.classes));
+      strokes=JSON.parse(JSON.stringify(saved.strokes||[]));
+      activeIdx=Math.min(activeIdx,classes.length-1);
+    } else {
+      // New case: drop accumulated instances, keep only base structures; clear strokes
+      classes=classes.filter(c=>c.instance===1);
+      strokes=[];
+    }
+    renderClasses();
+    const url=URL.createObjectURL(entry.file);
+    const im=new Image();
+    im.onload=()=>{ mountImage(im, saved?saved.dataURL:null); updateNavUI(); URL.revokeObjectURL(url); };
+    im.src=url;
+  }
+
+  function updateNavUI(){
+    const has=images.length>0, idx=currentImageIdx;
+    if(has){
+      const saved=!!annotations[images[idx].name];
+      $("#imgInfo").textContent=`${images[idx].name}  (${idx+1} / ${images.length})${saved?" ✓":""}`;
+    } else { $("#imgInfo").textContent=""; }
+    $("#navRow").style.display=has?"flex":"none";
+    $("#saveNext").style.display=has?"block":"none";
+    $("#prevImg").disabled=!has||idx<=0;
+    $("#nextImg").disabled=!has||idx>=images.length-1;
+    const isLast=has && idx>=images.length-1;
+    $("#saveNext").disabled=!has;
+    $("#saveNext").textContent=isLast?"Save \u2713":"Save & Next \u2192";
+  }
+
+  $("#fileMulti").addEventListener("change", e=>{
+    const files=Array.from(e.target.files).filter(f=>f.type.startsWith("image/"));
+    if(!files.length) return;
+    files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true,sensitivity:"base"}));
+    images=files.map(f=>({file:f,name:f.name}));
+    annotations={}; currentImageIdx=-1;
+    navigateTo(0); e.target.value="";
+  });
+
+  async function writeToFolder(name, blob){
+    const fh=await saveFolder.getFileHandle(name,{create:true});
+    const wr=await fh.createWritable(); await wr.write(blob); await wr.close();
+  }
+
+  async function flushAnnotationsJSON(){
+    const payload={version:1,
+      annotations:Object.entries(annotations).map(([name,ann])=>({
+        image:name, dataURL:ann.dataURL,
+        structures:ann.classes.filter(c=>c.instance===1).map(c=>({name:c.name,color:c.baseColor})),
+        strokes:ann.strokes||[]
+      }))};    
+    await writeToFolder("annotations.json", new Blob([JSON.stringify(payload)],{type:"application/json"}));
+  }
+
+  function buildStrokesBlob(){
+    const sidOrder=[]; classes.forEach(c=>{if(!sidOrder.includes(c.sid)) sidOrder.push(c.sid);});
+    const payload={
+      image: currentImageIdx>=0?images[currentImageIdx].name:null,
+      image_size:[lblC.height, lblC.width],
+      structures:sidOrder.map((sid,i)=>{
+        const c=classes.find(c=>c.sid===sid&&c.instance===1);
+        return {channel:i, name:c?c.name:"?", color:c?c.baseColor:"#000000"};
+      }),
+      // Each stroke is one continuous pen-down→pen-up gesture, in draw order
+      strokes:strokes.map((s,i)=>({
+        stroke_index:i, structure:s.name, sid:s.sid, instance:s.instance,
+        n_points:s.points.length, points:s.points
+      }))
+    };
+    return new Blob([JSON.stringify(payload)],{type:"application/json"});
+  }
+
+  $("#prevImg").addEventListener("click", ()=>navigateTo(currentImageIdx-1));
+  $("#nextImg").addEventListener("click", ()=>navigateTo(currentImageIdx+1));
+  $("#saveNext").addEventListener("click", async ()=>{
+    if(!img) return;
+    saveCurrentAnnotation();
+    const strokesBlob=buildStrokesBlob();
+    try{
+      if(saveFolder){
+        await writeToFolder(baseName()+"_strokes.json", strokesBlob);
+        await flushAnnotationsJSON(); // session backup
+      } else {
+        downloadBlob(strokesBlob, baseName()+"_strokes.json");
+      }
+    }catch(err){console.error("Save failed:",err);}
+    if(currentImageIdx<images.length-1) navigateTo(currentImageIdx+1);
+    else updateNavUI(); // refresh ✓ on final case
+  });
+
+  // Show folder picker only when the File System Access API is available
+  if(typeof window.showDirectoryPicker==="function") $("#setFolder").style.display="block";
+  $("#setFolder").addEventListener("click", async ()=>{
+    try{
+      saveFolder=await window.showDirectoryPicker({mode:"readwrite"});
+      $("#folderInfo").textContent="\u{1F4C1} "+saveFolder.name;
+      // Write shared structures list once so every _strokes.json can be cross-referenced
+      const unique=classes.filter(c=>c.instance===1).map(c=>({name:c.name,color:c.baseColor}));
+      await writeToFolder("structures.json", new Blob([JSON.stringify(unique,null,2)],{type:"application/json"}));
+    }catch(e){/* cancelled */}
+  });
+
+  // ── Coord mapping ────────────────────────────────────────────────────────
+  function toImg(clientX,clientY){
+    const r=lblC.getBoundingClientRect();
+    return {x:(clientX-r.left)/r.width*img.naturalWidth, y:(clientY-r.top)/r.height*img.naturalHeight};
+  }
+
+  // ── Undo ─────────────────────────────────────────────────────────────────
+  function pushUndo(){
+    try{
+      // Snapshot both canvas pixels and stroke list so undo is exact
+      undoStack.push({imageData:lctx.getImageData(0,0,lblC.width,lblC.height), strokes:JSON.parse(JSON.stringify(strokes))});
+      if(undoStack.length>MAX_UNDO) undoStack.shift();
+    }catch(err){}
+  }
+  $("#undo").addEventListener("click", ()=>{
+    const s=undoStack.pop();
+    if(s){lctx.putImageData(s.imageData,0,0); strokes=s.strokes;}
+  });
+  $("#clear").addEventListener("click", ()=>{
+    if(!img) return; pushUndo(); lctx.clearRect(0,0,lblC.width,lblC.height); strokes=[];
+  });
+
+  // ── Drawing ──────────────────────────────────────────────────────────────
+  let drawing=false, last=null;
+  function beginStroke(){
+    pushUndo(); drawing=true; last=null;
+    if(tool!=="erase") currentStroke={sid:classes[activeIdx].sid, name:classes[activeIdx].name, instance:classes[activeIdx].instance, points:[]};
+  }
+  function endStroke(){
+    drawing=false; last=null;
+    if(currentStroke && currentStroke.points.length>0) strokes.push(currentStroke);
+    currentStroke=null;
+  }
+
+  function paint(x,y,pressure){
+    let w=brushSize;
+    if(usePressure){let p=pressure||0; if(p<=0)p=0.5; w=brushSize*(0.3+0.9*p);}
+    lctx.lineCap="round"; lctx.lineJoin="round"; lctx.lineWidth=w;
+    if(tool==="erase"){
+      lctx.globalCompositeOperation="destination-out"; lctx.strokeStyle="rgba(0,0,0,1)";
+    } else {
+      lctx.globalCompositeOperation="source-over"; lctx.strokeStyle=classes[activeIdx].color;
+    }
+    if(last){
+      lctx.beginPath(); lctx.moveTo(last.x,last.y); lctx.lineTo(x,y); lctx.stroke();
+    } else {
+      lctx.beginPath(); lctx.arc(x,y,w/2,0,Math.PI*2);
+      lctx.fillStyle=tool==="erase"?"rgba(0,0,0,1)":classes[activeIdx].color; lctx.fill();
+    }
+    last={x,y};
+    // Store x, y, and rendered stroke diameter so mask is reconstructable without the PNG
+    if(currentStroke) currentStroke.points.push([Math.round(x), Math.round(y), Math.round(w*10)/10]);
+  }
+
+  // ── Pointer / gesture handling ───────────────────────────────────────────
+  const pointers=new Map();
+  let pinch=null;
+
+  lblC.style.touchAction="none";
+  stage.addEventListener("pointerdown", e=>{
+    if(!img) return;
+    pointers.set(e.pointerId,e);
+    if(e.pointerType==="touch"){
+      if(pointers.size===2){
+        endStroke();
+        const p=[...pointers.values()];
+        pinch={dist:Math.hypot(p[0].clientX-p[1].clientX,p[0].clientY-p[1].clientY),
+               cx:(p[0].clientX+p[1].clientX)/2, cy:(p[0].clientY+p[1].clientY)/2};
+      }
+      return;
+    }
+    stage.setPointerCapture(e.pointerId);
+    beginStroke();
+    const {x,y}=toImg(e.clientX,e.clientY); paint(x,y,e.pressure);
+  },{passive:false});
+
+  stage.addEventListener("pointermove", e=>{
+    if(!img) return;
+    if(pointers.has(e.pointerId)) pointers.set(e.pointerId,e);
+    if(e.pointerType==="touch" && pointers.size>=2){
+      const p=[...pointers.values()].slice(0,2);
+      const dist=Math.hypot(p[0].clientX-p[1].clientX,p[0].clientY-p[1].clientY);
+      const cx=(p[0].clientX+p[1].clientX)/2, cy=(p[0].clientY+p[1].clientY)/2;
+      if(pinch){const sr=stage.getBoundingClientRect(); zoomAt(cx-sr.left,cy-sr.top,dist/pinch.dist); tx+=(cx-pinch.cx); ty+=(cy-pinch.cy); applyTransform();}
+      pinch={dist,cx,cy}; e.preventDefault(); return;
+    }
+    if(e.pointerType==="touch" && pointers.size===1){
+      const prev=lblC._lastPan;
+      if(prev){tx+=e.clientX-prev.x; ty+=e.clientY-prev.y; applyTransform();}
+      lblC._lastPan={x:e.clientX,y:e.clientY}; e.preventDefault(); return;
+    }
+    if(drawing && (e.pointerType==="pen"||e.pointerType==="mouse")){
+      const evts=e.getCoalescedEvents?e.getCoalescedEvents():[e];
+      for(const ev of evts){const {x,y}=toImg(ev.clientX,ev.clientY); paint(x,y,ev.pressure);}
+      e.preventDefault();
+    }
+  },{passive:false});
+
+  function pointerEnd(e){
+    pointers.delete(e.pointerId); lblC._lastPan=null;
+    if(pointers.size<2) pinch=null;
+    if(e.pointerType==="pen"||e.pointerType==="mouse") endStroke();
+  }
+  stage.addEventListener("pointerup", pointerEnd);
+  stage.addEventListener("pointercancel", pointerEnd);
+  stage.addEventListener("pointerleave", e=>{if(e.pointerType!=="touch") endStroke();});
+
+  stage.addEventListener("wheel", e=>{
+    if(!img) return; e.preventDefault();
+    const sr=stage.getBoundingClientRect();
+    zoomAt(e.clientX-sr.left, e.clientY-sr.top, e.deltaY<0?1.1:1/1.1);
+  },{passive:false});
+
+  // ── Instances ────────────────────────────────────────────────────────────
+  function addInstance(i){
+    const base=classes[i];
+    const group=classes.filter(c=>c.sid===base.sid);
+    const nextInst=Math.max(...group.map(c=>c.instance))+1;
+    // Find the last index belonging to this structure (may have been inserted between others)
+    let insertAfter=i;
+    for(let j=i+1; j<classes.length; j++){if(classes[j].sid===base.sid) insertAfter=j; else break;}
+    classes.splice(insertAfter+1, 0, {
+      name:base.name, baseColor:base.baseColor,
+      color:instanceColor(base.baseColor,nextInst), instance:nextInst, sid:base.sid
+    });
+    activeIdx=insertAfter+1; tool="brush"; setTool(); renderClasses();
+  }
+
+  // ── UI: class list ───────────────────────────────────────────────────────
+  function renderClasses(){
+    const list=$("#classList"); list.innerHTML="";
+    classes.forEach((c,i)=>{
+      const isInst=c.instance>1;
+      const el=document.createElement("div");
+      el.className="cls"+(i===activeIdx?" active":"")+(isInst?" instance":"");
+      el.innerHTML=`
+        <span class="swatch" style="background:${c.color}"></span>
+        <span class="name" contenteditable="true" spellcheck="false">${c.name}</span>
+        ${isInst?`<span class="inst-badge">${c.instance}</span>`:""}
+        <span class="kbd">${i<9?i+1:""}</span>
+        <input type="color" value="${c.baseColor}" style="width:0;height:0;opacity:0;position:absolute">
+        <span class="act-btn add-inst" title="Add instance (])">&#8853;</span>
+        <span class="act-btn del" title="Remove">&#215;</span>`;
+
+      el.addEventListener("click", ev=>{
+        if(ev.target.classList.contains("del")){
+          ev.stopPropagation();
+          if(classes.length>1){classes.splice(i,1); if(activeIdx>=classes.length) activeIdx=classes.length-1; renderClasses();}
+          return;
+        }
+        if(ev.target.classList.contains("add-inst")){ev.stopPropagation(); addInstance(i); return;}
+        if(ev.target.classList.contains("name")) return;
+        activeIdx=i; tool="brush"; setTool(); renderClasses();
+      });
+
+      // Changing base color regenerates all instance shades for this structure
+      el.querySelector(".swatch").addEventListener("click", ev=>{ev.stopPropagation(); el.querySelector("input[type=color]").click();});
+      el.querySelector("input[type=color]").addEventListener("input", ev=>{
+        const nb=ev.target.value;
+        classes.forEach(cls=>{if(cls.sid===classes[i].sid){cls.baseColor=nb; cls.color=instanceColor(nb,cls.instance);}});
+        renderClasses();
+      });
+
+      // Renaming propagates to all instances of this structure
+      el.querySelector(".name").addEventListener("blur", ev=>{
+        const n=ev.target.textContent.trim()||("Structure "+(i+1));
+        classes.forEach(cls=>{if(cls.sid===classes[i].sid) cls.name=n;});
+      });
+      el.querySelector(".name").addEventListener("keydown", ev=>{if(ev.key==="Enter"){ev.preventDefault(); ev.target.blur();}});
+      list.appendChild(el);
+    });
+  }
+
+  $("#addClass").addEventListener("click", ()=>{
+    const palette=["#ff8c42","#00c2c7","#f45db3","#9ee37d","#b0b7c3"];
+    classes.push({name:"Structure "+(classes.length+1), baseColor:palette[classes.length%palette.length],
+                  color:palette[classes.length%palette.length], instance:1, sid:sidCounter++});
+    activeIdx=classes.length-1; renderClasses();
+  });
+
+  // ── Structures save / load ───────────────────────────────────────────────
+  $("#saveStructures").addEventListener("click", ()=>{
+    const unique=classes.filter(c=>c.instance===1).map(c=>({name:c.name, color:c.baseColor}));
+    const blob=new Blob([JSON.stringify(unique,null,2)],{type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="structures.json";
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  });
+
+  $("#loadStructures").addEventListener("change", e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const data=JSON.parse(ev.target.result);
+        if(!Array.isArray(data)||!data.length) throw new Error();
+        sidCounter=0;
+        classes=data.map(d=>({name:String(d.name||"Structure"), baseColor:String(d.color||"#888888"),
+                               color:String(d.color||"#888888"), instance:1, sid:sidCounter++}));
+        activeIdx=0; renderClasses();
+      }catch(err){alert("Invalid structures file.");}
+    };
+    reader.readAsText(f); e.target.value="";
+  });
+
+  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  window.addEventListener("keydown", e=>{
+    if(e.target.isContentEditable) return;
+    const n=parseInt(e.key,10);
+    if(n>=1&&n<=Math.min(classes.length,9)){activeIdx=n-1; tool="brush"; setTool(); renderClasses();}
+    if(e.key==="e"||e.key==="E"){tool="erase"; setTool();}
+    if(e.key==="b"||e.key==="B"){tool="brush"; setTool();}
+    if((e.metaKey||e.ctrlKey)&&e.key==="z"){e.preventDefault(); $("#undo").click();}
+    if(e.key==="]"||e.key==="+") addInstance(activeIdx);  // new instance of active structure
+  });
+
+  // ── Tool UI ──────────────────────────────────────────────────────────────
+  function setTool(){
+    $("#brushBtn").classList.toggle("on",tool==="brush");
+    $("#eraseBtn").classList.toggle("on",tool==="erase");
+  }
+  $("#brushBtn").addEventListener("click",()=>{tool="brush"; setTool();});
+  $("#eraseBtn").addEventListener("click",()=>{tool="erase"; setTool();});
+  $("#size").addEventListener("input",e=>{brushSize=+e.target.value; $("#sizeVal").textContent=brushSize+" px";});
+  $("#opacity").addEventListener("input",e=>{lblC.style.opacity=e.target.value/100; $("#opVal").textContent=e.target.value+"%";});
+  $("#pressure").addEventListener("change",e=>{usePressure=e.target.checked;});
+  lblC.style.opacity=0.7;
+
+  $("#zoomIn").addEventListener("click",()=>{const r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1.25);});
+  $("#zoomOut").addEventListener("click",()=>{const r=stage.getBoundingClientRect(); zoomAt(r.width/2,r.height/2,1/1.25);});
+  $("#fit").addEventListener("click",fit);
+  $("#menuBtn").addEventListener("click",()=>$("#side").classList.toggle("open"));
+
+  // ── Export ───────────────────────────────────────────────────────────────
+  function downloadBlob(blob,name){
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }
+  function baseName(){
+    return currentImageIdx>=0 ? images[currentImageIdx].name.replace(/\.[^.]+$/,"") : "annotation";
+  }
+
+  // Export all in-session annotations as a single JSON file
+  $("#exportAll").addEventListener("click",()=>{
+    if(!images.length){alert("No image set loaded."); return;}
+    saveCurrentAnnotation();
+    const payload={
+      version:1,
+      annotations:Object.entries(annotations).map(([name,ann])=>({
+        image:name,
+        dataURL:ann.dataURL,
+        structures:ann.classes.filter(c=>c.instance===1).map(c=>({name:c.name,color:c.baseColor}))
+      }))
+    };
+    downloadBlob(new Blob([JSON.stringify(payload)],{type:"application/json"}), "annotations.json");
+  });
+
+  $("#exportStrokes").addEventListener("click",()=>{
+    if(!img) return;
+    downloadBlob(buildStrokesBlob(), baseName()+"_strokes.json");
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  renderClasses(); setTool(); updateNavUI();
+  window.addEventListener("resize",()=>{if(img&&scale) applyTransform();});
+})();
+</script>
+<script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+</body>
+</html>

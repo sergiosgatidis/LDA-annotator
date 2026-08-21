@@ -1,0 +1,12 @@
+{
+  "name": "Tube & Line Annotator",
+  "short_name": "Annotator",
+  "display": "standalone",
+  "start_url": "./tube-annotator.html",
+  "background_color": "#0d0f12",
+  "theme_color": "#0d0f12",
+  "orientation": "landscape",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

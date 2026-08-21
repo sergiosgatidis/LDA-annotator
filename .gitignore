@@ -1,0 +1,16 @@
+# data examples (images, strokes, session exports)
+*.jpg
+*.jpeg
+*.png
+*_strokes.json
+annotations.json
+structures.json
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Jupyter checkpoints
+.ipynb_checkpoints/

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#16191e"/>
+  <!-- pencil body -->
+  <rect x="220" y="80" width="72" height="260" rx="12" fill="#5b9bd5" transform="rotate(45 256 256)"/>
+  <!-- pencil tip -->
+  <polygon points="256,400 230,340 282,340" fill="#e7ebf1"/>
+  <!-- eraser -->
+  <rect x="220" y="72" width="72" height="36" rx="10" fill="#e0554f" transform="rotate(45 256 256)"/>
+</svg>
