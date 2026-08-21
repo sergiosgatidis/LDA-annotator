@@ -120,6 +120,10 @@
 
     <!-- ── Structures ──────────────────────────────────────── -->
     <div class="group">
+      <div class="row" style="margin-bottom:10px">
+        <button id="undo">Undo</button>
+        <button id="clear" class="ghost">Clear</button>
+      </div>
       <div class="label">Structures</div>
       <div id="classList"></div>
       <button class="ghost" id="addClass" style="margin-top:6px">+ Add structure</button>
@@ -150,10 +154,6 @@
 
     <!-- ── Actions ─────────────────────────────────────────── -->
     <div class="group">
-      <div class="row" style="margin-bottom:8px">
-        <button id="undo">Undo</button>
-        <button id="clear" class="ghost">Clear</button>
-      </div>
       <button id="exportAll" style="font-size:12px; margin-bottom:8px">Export all annotations (JSON)</button>
       <button id="exportStrokes" style="font-size:12px">Export strokes (.json)</button>
     </div>
@@ -218,13 +218,35 @@
   }
 
   // ── State ────────────────────────────────────────────────────────────────
-  let sidCounter = 5;   // next unique structure ID
+  let sidCounter = 27;   // next unique structure ID
   let classes = [
-    {name:"ETT",                color:"#ff4d4d", baseColor:"#ff4d4d", instance:1, sid:0},
-    {name:"NG / OG tube",       color:"#ffd11a", baseColor:"#ffd11a", instance:1, sid:1},
-    {name:"Central line (CVC)", color:"#39d353", baseColor:"#39d353", instance:1, sid:2},
-    {name:"Chest tube",         color:"#3aa0ff", baseColor:"#3aa0ff", instance:1, sid:3},
-    {name:"PICC",               color:"#c07bff", baseColor:"#c07bff", instance:1, sid:4},
+    {name:"ETT",                    color:"#ff4d4d", baseColor:"#ff4d4d", instance:1, sid:0},
+    {name:"Chest TUBE",             color:"#ff8c42", baseColor:"#ff8c42", instance:1, sid:1},
+    {name:"Repogle TUBE",           color:"#ffd11a", baseColor:"#ffd11a", instance:1, sid:2},
+    {name:"Weighted Enteric TUBE",  color:"#c8e645", baseColor:"#c8e645", instance:1, sid:3},
+    {name:"UVC",                    color:"#39d353", baseColor:"#39d353", instance:1, sid:4},
+    {name:"UAC",                    color:"#00c2c7", baseColor:"#00c2c7", instance:1, sid:5},
+    {name:"ECMO CANNULA",           color:"#3aa0ff", baseColor:"#3aa0ff", instance:1, sid:6},
+    {name:"Upper Extr PICC",        color:"#5b9bd5", baseColor:"#5b9bd5", instance:1, sid:7},
+    {name:"Inferior Approach PICC", color:"#c07bff", baseColor:"#c07bff", instance:1, sid:8},
+    {name:"Upper Approach CL",      color:"#f45db3", baseColor:"#f45db3", instance:1, sid:9},
+    {name:"Inferior Approach CL",   color:"#ff69b4", baseColor:"#ff69b4", instance:1, sid:10},
+    {name:"Intracardiac CATH",      color:"#e040fb", baseColor:"#e040fb", instance:1, sid:11},
+    {name:"Sternotomy WIRES",       color:"#b0b7c3", baseColor:"#b0b7c3", instance:1, sid:12},
+    {name:"Epicardial LEADS",       color:"#ffc107", baseColor:"#ffc107", instance:1, sid:13},
+    {name:"Surg CLIPS",             color:"#76ff03", baseColor:"#76ff03", instance:1, sid:14},
+    {name:"Surg STAPLES",           color:"#4dd0e1", baseColor:"#4dd0e1", instance:1, sid:15},
+    {name:"EKG",                    color:"#ffab40", baseColor:"#ffab40", instance:1, sid:16},
+    {name:"Tracheostomy TUBE",      color:"#81d4fa", baseColor:"#81d4fa", instance:1, sid:17},
+    {name:"Gastrostomy TUBE",       color:"#a1887f", baseColor:"#a1887f", instance:1, sid:18},
+    {name:"Vascular COILS",         color:"#7c4dff", baseColor:"#7c4dff", instance:1, sid:19},
+    {name:"Esophageal PROBE",       color:"#ff5722", baseColor:"#ff5722", instance:1, sid:20},
+    {name:"PACEMAKER",              color:"#3f51b5", baseColor:"#3f51b5", instance:1, sid:21},
+    {name:"Pacemaker WIRE",         color:"#7986cb", baseColor:"#7986cb", instance:1, sid:22},
+    {name:"Abdominal DRAIN",        color:"#cddc39", baseColor:"#cddc39", instance:1, sid:23},
+    {name:"VP Shunt",               color:"#00897b", baseColor:"#00897b", instance:1, sid:24},
+    {name:"CAD",                    color:"#ff3d00", baseColor:"#ff3d00", instance:1, sid:25},
+    {name:"IMPELLA",                color:"#ff6d00", baseColor:"#ff6d00", instance:1, sid:26},
   ];
   let activeIdx = 0;
   let tool = "brush";
