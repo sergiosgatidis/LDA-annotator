@@ -20,7 +20,7 @@
   body{display:flex; touch-action:none;}
 
   /* Sidebar */
-  #side{width:268px; flex:0 0 268px; background:var(--panel); border-right:1px solid var(--border);
+  #side{width:310px; flex:0 0 310px; background:var(--panel); border-right:1px solid var(--border);
     display:flex; flex-direction:column; overflow-y:auto;}
   #side h1{font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted);
     margin:0; padding:16px 16px 4px;}
@@ -563,7 +563,7 @@
       el.className="cls"+(i===activeIdx?" active":"")+(isInst?" instance":"");
       el.innerHTML=`
         <span class="swatch" style="background:${c.color}"></span>
-        <span class="name" contenteditable="true" spellcheck="false">${c.name}</span>
+        <span class="name" contenteditable="false" spellcheck="false">${c.name}</span>
         ${isInst?`<span class="inst-badge">${c.instance}</span>`:""}
         <span class="kbd">${i<9?i+1:""}</span>
         <input type="color" value="${c.baseColor}" style="width:0;height:0;opacity:0;position:absolute">
@@ -577,7 +577,7 @@
           return;
         }
         if(ev.target.classList.contains("add-inst")){ev.stopPropagation(); addInstance(i); return;}
-        if(ev.target.classList.contains("name")) return;
+        // Single click anywhere on row (including name) selects the structure
         activeIdx=i; tool="brush"; setTool(); renderClasses();
       });
 
@@ -589,8 +589,15 @@
         renderClasses();
       });
 
-      // Renaming propagates to all instances of this structure
+      // Double-click enables rename; blur/Enter commits and propagates to all instances
+      el.querySelector(".name").addEventListener("dblclick", ev=>{
+        ev.stopPropagation();
+        const span=ev.target; span.contentEditable="true"; span.focus();
+        const range=document.createRange(); range.selectNodeContents(span);
+        getSelection().removeAllRanges(); getSelection().addRange(range);
+      });
       el.querySelector(".name").addEventListener("blur", ev=>{
+        ev.target.contentEditable="false";
         const n=ev.target.textContent.trim()||("Structure "+(i+1));
         classes.forEach(cls=>{if(cls.sid===classes[i].sid) cls.name=n;});
       });
